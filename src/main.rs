@@ -1,28 +1,22 @@
-#![no_std]
 #![no_main]
+#![no_std]
 
-/* define a default panic handler */
-use panic_halt as _;
+use embassy_executor::Spawner;
+use embassy_nrf::gpio::{Level, Output, OutputDrive};
+use embassy_time::{Duration, Timer};
+use {cortex_m as _, defmt_rtt as _, panic_probe as _};
 
-use embedded_hal::digital::v2::InputPin;
-use embedded_hal::digital::v2::OutputPin;
-use cortex_m_rt::entry;
-use nrf52833_hal as hal;
-use nrf52833_hal::gpio::Level;
-
-#[entry]
-fn main() -> ! {
-
-    let p = hal::pac::Peripherals::take().unwrap();
-    let port0 = hal::gpio::p0::Parts::new(p.P0);
-    let button = port0.p0_11.into_pullup_input(); /* button 1 */
-    let mut led = port0.p0_13.into_push_pull_output(Level::Low); /* led 1 */
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) -> ! {
+    let p = embassy_nrf::init(Default::default());
+    // nRF52833 DK LED1 is P0.13; adjust if your board uses a different pin.
+    let mut led = Output::new(p.P0_13, Level::Low, OutputDrive::Standard);
+    defmt::info!("Embassy blinky started");
 
     loop {
-        if button.is_high().unwrap() {
-            led.set_high().unwrap();
-        } else {
-            led.set_low().unwrap();
-        }
+        led.set_high();
+        Timer::after(Duration::from_millis(500)).await;
+        led.set_low();
+        Timer::after(Duration::from_millis(500)).await;
     }
 }
